@@ -2,13 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
+use Tymon\JWTAuth\Contracts\JWTSubject;
 
-
-class User extends Authenticatable
+class User extends Authenticatable implements JWTSubject
 {
     use HasFactory, Notifiable;
 
@@ -17,6 +17,7 @@ class User extends Authenticatable
         'username',
         'password',
         'role_id',
+        'status',
     ];
 
     protected $hidden = [
@@ -24,22 +25,18 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    protected function casts(): array
+    public function getJWTIdentifier()
     {
-        return [
-            'password' => 'hashed',
-        ];
+        return $this->getKey();
     }
 
-    // Relasi ke Role
+    public function getJWTCustomClaims()
+    {
+        return [];
+    }
     public function role()
     {
         return $this->belongsTo(Role::class);
     }
 
-    // Cek permission dari role
-    public function hasPermission(string $permissionName): bool
-    {
-        return $this->role && $this->role->permissions->contains('permission_name', $permissionName);
-    }
 }

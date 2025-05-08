@@ -6,16 +6,16 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        Schema::create('permissions', function (Blueprint $table) {
+        Schema::create('branch_logs', function (Blueprint $table) {
             $table->id();
-            $table->string('permission_name');
+            $table->foreignId('branch_id')->constrained('branches')->onDelete('cascade');
+            $table->string('log', 255);
+            $table->dateTime('created_at')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
-            $table->unsignedBigInteger('updated_by')->nullable();
-            $table->timestamps();
         });
     }
 
     public function down(): void {
-        Schema::dropIfExists('permissions');
+        Schema::dropIfExists('branch_logs');
     }
 };
