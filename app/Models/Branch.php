@@ -6,12 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class Branch extends Model
 {
-    protected $fillable = [
-        'internet_provider_id',
-        'internet_customer_id',
-        'cctv_type',
-        'ip_cam_account_id'
+   protected $fillable = [
+    'internet_provider_id',
+    'internet_customer_id',
+    'cctv_type',
+    'ip_cam_account_id'
     ];
+
     public function provider()
     {
         return $this->belongsTo(InternetProvider::class, 'internet_provider_id');
@@ -19,13 +20,21 @@ class Branch extends Model
 
     public function ipCamAccount()
     {
-        return $this->belongsTo(IpCamAccount::class);
+        return $this->belongsTo(IpCamAccount::class, 'ip_cam_account_id');
     }
+
 
     public function cctvs()
     {
         return $this->hasMany(Cctv::class);
     }
+    public function WorkOrder()
+    {
+        return $this->hasMany(WorkOrder::class);
+    }
 
-
+    public function cctv_type()
+    {
+        return $this->belongsTo(Branch::class, 'cctv_type');
+    }
 }

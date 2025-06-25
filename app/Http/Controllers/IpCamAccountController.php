@@ -7,9 +7,15 @@ use Illuminate\Http\Request;
 
 class IpCamAccountController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(IpCamAccount::all());
+        $limit = $request->input('limit', 10);
+        $accounts = IpCamAccount::paginate($limit);
+
+        return response()->json([
+            'data' => $accounts->items(),
+            'total' => $accounts->total(),
+        ]);
     }
 
     public function store(Request $request)

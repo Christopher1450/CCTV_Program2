@@ -7,16 +7,30 @@ use App\Models\CctvPosition;
 
 class CctvPositionController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(CctvPosition::all());
+        $limit = $request->input('limit', 10); // default 10
+        $positions = CctvPosition::paginate($limit);
+
+        return response()->json([
+            'data' => $positions->items(),  // array data
+            'total' => $positions->total(), // total semua data
+        ]);
     }
+
 
     public function store(Request $request)
     {
+        $user = auth()->user();
+
         $validated = $request->validate([
             'name' => 'required|string|unique:cctv_positions,name',
         ]);
+
+        $validated['created_by'] = $user->id;
+        // $validated['updated_by'] = $user->id;
+
+        // $provider = InternetProvider::create($validated);
 
         $position = CctvPosition::create($validated);
 
@@ -24,5 +38,30 @@ class CctvPositionController extends Controller
             'message' => 'Position created successfully',
             'data' => $position
         ], 201);
+    }
+    public function update(Request $request, CctvPosition $cctvPosition)
+    {
+        $user = auth()->user();
+
+        $validated = $request->validate([
+            'name' => 'required|string|unique:cctv_positions,name,' . $cctvPosition->id,
+        ]);
+
+        $validated['updated_by'] = $user->id;
+
+        $cctvPosition->update($validated);
+
+        return response()->json([
+            'message' => 'Position updated successfully',
+            'data' => $cctvPosition
+        ]);
+    }
+    public function destroy(CctvPosition $cctvPosition)
+    {
+        $cctvPosition->delete();
+
+        return response()->json([
+            'message' => 'Position deleted successfully'
+        ]);
     }
 }

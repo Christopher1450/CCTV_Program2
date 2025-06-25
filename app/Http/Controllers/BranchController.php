@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Branch;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 
 class BranchController extends Controller
 {
@@ -14,18 +15,25 @@ class BranchController extends Controller
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'internet_provider_id' => 'required|exists:internet_providers,id',
-            // 'internet_customer_id' => 'required|string|max:60',
-            'cctv_type' => 'required|in:1,2',
-            'ip_cam_account_id' => 'required|exists:ip_cam_accounts,id',
-        ]);
+    // $hrisData = Http::withToken('token')->get("https://api/branches/{$request->hris_id}")->json();
 
-        $branch = Branch::create($validated);
+    $branch = Branch::create([
+    //     'name'          => $hrisData['name'],
+    //     'phone'         => $hrisData['phone'],
+    //     'address'       => $hrisData['address'],
+    //     'latitude'      => $hrisData['latitude'],
+    //     'longitude'     => $hrisData['longitude'],
+    //     'area_manager'  => $hrisData['area_manager'],
+    //     'branch_head'   => $hrisData['branch_head'],
+        // sisanya dari input user:
+        'internet_provider_id'   => $request->internet_provider_id,
+        'internet_customer_id'   => $request->internet_customer_id,
+        'cctv_type'              => $request->cctv_type,
+        'ip_cam_account_id'      => $request->ip_cam_account_id,
+    ]);
 
-        return response()->json($branch, 201);
-    }
-
+    return response()->json($branch);
+}
     public function show($id)
     {
         $branch = Branch::with(['provider', 'ipCamAccount'])->findOrFail($id);
@@ -37,18 +45,20 @@ class BranchController extends Controller
         $branch = Branch::findOrFail($id);
 
         $validated = $request->validate([
-            'internet_provider_id' => 'required|exists:internet_providers,id',
-            // 'internet_customer_id' => 'required|string|max:60',
-            'cctv_type' => 'required|in:1,2',
-            'ip_cam_account_id' => 'required|exists:ip_cam_accounts,id',
+            'internet_provider_id'  => 'nullable|exists:internet_providers,id',
+            'internet_customer_id'  => 'nullable|string|max:60',
+            'cctv_type'             => 'nullable|in:1,2', // 1: IP Camera, 2: Analog Camera
+            'ip_cam_account_id'     => 'nullable|exists:ip_cam_accounts,id',
         ]);
 
-        $branch->update($request->only([
-            'internet_provider_id',
-            'internet_customer_id',
-            'cctv_type',
-            'ip_cam_account_id',
-        ]));
+        $branch->update($validated);
+
+            // $branch->update($request->only([
+            //     'internet_provider_id',
+            //     'internet_customer_id',
+            //     'cctv_type',
+            //     'ip_cam_account_id',
+            // ]));
 
         return response()->json([
             'message' => 'Branch updated successfully',
@@ -62,5 +72,20 @@ class BranchController extends Controller
         $branch->delete();
 
         return response()->json(['message' => 'Branch deleted successfully']);
+    }
+    public function searchByName(Request $request)
+    {
+        $name = $request->query('name');
+        $branch = \App\Models\Branch::where('name', $name)->firstOrFail();
+        return response()->json(['id' => $branch->id]);
+    }
+    public function syncFromHRIS($id)
+    {
+        $response = Http::withToken('token_hris')->get("https://external-hris.com/api/branches/{$id}");
+        if ($response->failed()) {
+            return response()->json(['message' => 'Cabang tidak ditemukan'], 404);
+        }
+
+        return response()->json($response->json());
     }
 }

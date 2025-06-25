@@ -12,6 +12,16 @@ class WorkOrderNote extends Model
 
     public function workOrder()
     {
-        return $this->belongsTo(WorkOrder::class);
+        return $this->belongsTo(WorkOrder::class, 'work_order_id');
     }
+    public function creator()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+    protected $appends = ['creator_name'];
+    public function getCreatorNameAttribute()
+    {
+        return $this->creator?->name;
+    }
+
 }

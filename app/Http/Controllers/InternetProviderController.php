@@ -4,30 +4,51 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\InternetProvider;
-
+use Faker\Provider\ar_EG\Internet;
+use App\Models\IspMaster;
 
 class InternetProviderController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(InternetProvider::all());
+        $limit = $request->input('limit', 10);
+
+        $providers = InternetProvider::with(['createdBy:id,name', 'updatedBy:id,name'])->paginate($limit);
+
+        return response()->json([
+            'data' => $providers->items(),
+            'total' => $providers->total(),
+            'current_page' => $providers->currentPage(),
+            'last_page' => $providers->lastPage(),
+        ]);
     }
+    public function list()
+    {
+        return response()->json(
+            InternetProvider::select('id', 'provider_name')->get()
+        );
+    }
+
+
 
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|unique:internet_providers,name',
-        ]);
+        $validated = $request->validate([
+        'name' => 'required|string|max:255',
+        'description' => 'nullable|string',
+]);
 
-        $provider = InternetProvider::create($request->only('name'));
+        $validated['created_by'] = $request->input('created_by');
 
-        return response()->json($provider, 201);
+        $model = InternetProvider::create($validated);
+
+        return response()->json($model, 201);
     }
 
     /**
@@ -45,12 +66,20 @@ class InternetProviderController extends Controller
     public function update(Request $request, string $id)
     {
         $provider = InternetProvider::findOrFail($id);
+        // $provider = InternetProvider
 
-        $request->validate([
-            'name' => 'required|string|unique:internet_providers,name,' . $id,
+       $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
         ]);
 
-        $provider->update($request->only('name'));
+        $validated['created_by'] = $request->input('updated_by');
+
+
+        $provider->update($validated);
+
+
+        $provider->update($request->only('name', 'created_by', 'updated_by'));
 
         return response()->json($provider);
     }

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void {
         Schema::create('ip_cam_accounts', function (Blueprint $table) {
-            $table->id();
+            $table->id()->autoIncrement();
             $table->string('email', 100)->unique();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();

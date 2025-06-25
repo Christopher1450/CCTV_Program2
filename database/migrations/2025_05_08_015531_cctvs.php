@@ -12,7 +12,7 @@ return new class extends Migration {
             $table->foreignId('branch_id')->constrained('branches');
             $table->foreignId('cctv_position_id')->constrained('cctv_positions');
 
-            $table->string('name', 60);
+            $table->string('name', 60)->unique();
             $table->boolean('is_active')->default(true);
 
             $table->tinyInteger('connection_status')->default(1); // 0 = Disconnected, 1 = Connected

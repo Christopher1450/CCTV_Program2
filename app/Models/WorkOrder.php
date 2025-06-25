@@ -6,7 +6,17 @@ use Illuminate\Database\Eloquent\Model;
 
 class WorkOrder extends Model
 {
-    protected $fillable = ['branch_id', 'cctv_id', 'title', 'description'];
+    protected $fillable = [
+        'branch_id',
+        'cctv_id',
+        'title',
+        'description',
+        'problem_type',
+        'notes',
+        'status',
+        'takenBy'
+    ];
+
     public function branch()
     {
         return $this->belongsTo(Branch::class);
@@ -26,4 +36,13 @@ class WorkOrder extends Model
     {
         return $this->hasMany(WorkOrderNote::class);
     }
+    public function users()
+    {
+        return $this->belongsTo(User::class);
+    }
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
 }

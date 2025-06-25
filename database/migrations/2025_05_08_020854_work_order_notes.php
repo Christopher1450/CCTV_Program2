@@ -10,7 +10,7 @@ return new class extends Migration {
             $table->id();
 
             $table->foreignId('work_order_id')->constrained('work_orders')->onDelete('cascade');
-            $table->text('note');
+            $table->string('notes');
 
             $table->datetime('created_at')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\WorkOrderNote;
+use App\Models\User;
+
 
 class WorkOrderNoteController extends Controller
 {
@@ -16,16 +18,19 @@ class WorkOrderNoteController extends Controller
     {
         $validated = $request->validate([
             'work_order_id' => 'required|exists:work_orders,id',
-            'note' => 'required|string|max:255',
+            'notes' => 'required|string|max:255',
         ]);
 
         // $validated['created_by'] = auth()->id();
 
-        $note = WorkOrderNote::create($validated);
+        $note = WorkOrderNote::create([
+        'work_order_id' => $validated['work_order_id'],
+        'notes'         => $validated['notes'],
+        // 'created_by' => auth()->id(),
+    ]);
+    return response()->json([
+    'data' => WorkOrderNote::with(['workOrder', 'creator'])->latest()->get()
+]);
 
-        return response()->json([
-            'message' => 'Work order note created',
-            'data' => $note
-        ], 201);
     }
 }
