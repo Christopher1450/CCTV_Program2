@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class WorkOrderNote extends Model
 {
-    protected $fillable = ['work_order_id', 'note', 'created_by'];
+    protected $fillable = ['work_order_id', 'notes', 'created_by'];
 
     public $timestamps = false;
 

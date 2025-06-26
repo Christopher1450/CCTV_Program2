@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\WorkOrderNote;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
+
 
 
 class WorkOrderNoteController extends Controller
@@ -26,7 +28,7 @@ class WorkOrderNoteController extends Controller
         $note = WorkOrderNote::create([
         'work_order_id' => $validated['work_order_id'],
         'notes'         => $validated['notes'],
-        // 'created_by' => auth()->id(),
+        'created_by' => Auth::id(),
     ]);
     return response()->json([
     'data' => WorkOrderNote::with(['workOrder', 'creator'])->latest()->get()

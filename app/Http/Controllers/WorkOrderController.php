@@ -7,12 +7,19 @@ use App\Models\WorkOrder;
 use Illuminate\Http\Request;
 use App\Models\Cctv;
 use App\Models\Branch;
+use Illuminate\Validation\ValidationException;
 
 class WorkOrderController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(WorkOrder::with( ['branch', 'cctv', 'takenBy','cctv.position','branch.cctv_type','user', 'cctv.ipCamAccount'])->get());
+        $query = WorkOrder::with(['branch', 'cctv', 'takenBy', 'cctv.position', 'branch.cctv_type', 'user', 'cctv.ipCamAccount']);
+
+        if ($request->has('status') && in_array($request->status, [1, 2, 3, 4])) {
+            $query->where('status', $request->status);
+        }
+
+        return response()->json($query->get());
     }
 
     public function store(Request $request)
@@ -24,13 +31,29 @@ class WorkOrderController extends Controller
             return response()->json(['message' => 'CCTV or Branch not found.'], 404);
         }
         $validated = $request->validate([
-            'problem_type'  => 'required|integer|in:1,2',
-            'status'        => 'required|integer|in:1,2,3,4',
-            'notes'         => 'required|string|max:100',
-            'taken_by'      => 'nullable|exists:users,id',
-            'result_type'   => 'nullable|integer|in:1,2',
-            'result_notes'  => 'nullable|string|max:255',
+            'problem_type'      => 'required|integer|in:1,2',
+            'status'            => 'required|integer|in:1,2,3,4',
+            'notes'             => 'required|string|max:100',
+            'taken_by'          => 'nullable|exists:users,id',
+            'result_type'       => 'nullable|integer|in:1,2',
+            'work_order_notes'  => 'nullable|string|max:255',
         ]);
+
+         $existing = WorkOrder::whereHas('cctv', function ($q) use ($request) {
+            $q->where('name', $request->cctv_name);
+            })
+            ->whereHas('branch', function ($q) use ($request) {
+            $q->where('name', $request->branch_name);
+            })
+            ->whereIn('status', [1, 2])
+            ->first();
+
+
+    if ($existing) {
+        throw ValidationException::withMessages([
+            'cctv_name' => 'CCTV ini sudah memiliki Work Order aktif pada cabang yang sama.',
+        ]);
+    }
 
     $workOrder = WorkOrder::create([
         'cctv_id'       => $cctv->id,
@@ -40,7 +63,7 @@ class WorkOrderController extends Controller
         'notes'         => $validated['notes'],
         'taken_by'      => $validated['taken_by'],
         'result_type'   => $validated['result_type'],
-        'result_notes'  => $validated['result_notes'],
+        'work_order_notes'  => $validated['work_order_notes'] ?? null,
     ]);
 
     $this->updateCctvStatusFromWO($cctv->id);
@@ -61,11 +84,13 @@ class WorkOrderController extends Controller
             'notes'         => $workOrder->notes,
             'taken_by_name' => $workOrder->takenBy->name,
             'result_type'   => $workOrder->result_type,
-            'result_notes'  => $workOrder->result_notes,
+            'work_order_notes'  => $workOrder->work_order_notes,
             'created_at'    => $workOrder->created_at,
             'updated_at'    => $workOrder->updated_at,
         ]);
-
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
     }
 
     public function update(Request $request, $id)
@@ -156,7 +181,7 @@ class WorkOrderController extends Controller
 
         // Hanya bisa isi notes jika status id == 3
         if ($status == 3) {
-            $rules['result_notes'] = 'required|string|max:255';
+            $rules['work_order_notes'] = 'nullable|string|max:255';
         }
 
         $validated = $request->validate($rules);
@@ -170,7 +195,7 @@ class WorkOrderController extends Controller
 
         $workOrder->update([
             'status' => $status,
-            'result_notes' => $request->input('result_notes'), // null untuk waiting replacement
+            'work_order_notes' => $request->input('work_order_notes'), // null untuk waiting replacement
         ]);
 
         if ($status == 3) {
