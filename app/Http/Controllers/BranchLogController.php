@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BranchLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class BranchLogController extends Controller
 {
@@ -18,8 +19,7 @@ class BranchLogController extends Controller
             'branch_id' => 'required|exists:branches,id',
             'log' => 'required|string|max:255',
         ]);
-
-        $validated['created_by'] = auth()->id();
+        $validated['created_by'] = Auth::id();
 
         $log = BranchLog::create($validated);
 

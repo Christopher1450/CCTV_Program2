@@ -4,52 +4,53 @@ namespace App\Http\Controllers;
 
 use App\Models\Cctv;
 use App\Models\CctvPosition;
-// use Auth;
-use Illuminate\Http\Request;
 use App\Models\Branch;
 use App\Models\WorkOrder;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Tymon\JWTAuth\Contracts\Providers\Auth as ProvidersAuth;
 
 class CctvController extends Controller
 {
     public function index(Request $request)
     {
-        $subquery = Cctv::selectRaw('MIN(id) as id')
-            ->groupBy('branch_id');
+        $query = Cctv::with(['branch.ipCamAccount', 'position']);
 
-        $query = Cctv::with(['branch.ipCamAccount', 'position'])
-            ->whereIn('id', $subquery);
-
+        // Optional: filter pencarian
         if ($request->has('q')) {
             $query->where('name', 'like', '%' . $request->q . '%');
         }
 
+        // Filter berdasarkan koneksi
         if ($request->has('connectionStatus')) {
-            $query->where('connection_status', $request->connectionStatus === 'Connected');
+            $status = $request->connectionStatus === 'Connected' ? 1 : 0;
+            $query->where('connection_status', $status);
+        }
+
+        // Filter berdasarkan nama cabang
+        if ($request->filled('branch')) {
+            $branchName = $request->branch;
+            $query->whereHas('branch', function ($q) use ($branchName) {
+                $q->where('name', 'like', '%' . $branchName . '%');
+            });
         }
 
         $limit = $request->get('limit', 10);
-
         return response()->json($query->paginate($limit));
     }
-
 
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'branch_id'             => 'nullable|exists:branches,id',
-            // 'cctv_type'             => 'in:1,2',
+            'branch_id'             => 'required|exists:branches,id',
             'cctv_position_id'      => 'required|exists:cctv_positions,id',
-            'name'                  => 'required|string',
+            'name'                  => 'required|string|unique:cctvs,name,NULL,id,branch_id,' . $request->branch_id,
             'is_active'             => 'boolean',
             'connection_status'     => 'in:1,2',
             'playback_status'       => 'in:1,2',
-            'replacement_status'    => 'in:1,2',
-            'created_by'            => Auth::user(),
+            // 'replacement_status'    => 'in:1,2',
         ]);
 
-        // $position = CctvPosition::where('name', $request->input('cctv_position'))->firstOrFail();
+        $validated['created_by'] = Auth::user();
 
         $cctv = Cctv::create($validated);
 
@@ -67,16 +68,16 @@ class CctvController extends Controller
         $cctv = Cctv::findOrFail($id);
 
         $validated = $request->validate([
-            'branch_id'         => 'required|exists:branches,id',
-            // 'cctv_type'         => 'required|in:1,2',
-            'cctv_position_id'  => 'required|exists:cctv_positions,id',
-            'name'              => 'required|string',
-            'is_active'         => 'boolean',
-            'connection_status' => 'in:1,2',
-            'playback_status'   => 'in:1,2',
-            'replacement_status'=> 'in:1,2',
-            'updated_by'        => Auth::user(),
+            'branch_id'             => 'required|exists:branches,id',
+            'cctv_position_id'      => 'required|exists:cctv_positions,id',
+            'name'                  => 'required|string|unique:cctvs,name,' . $id . ',id,branch_id,' . $request->branch_id,
+            'is_active'             => 'boolean',
+            'connection_status'     => 'in:1,2',
+            'playback_status'       => 'in:1,2',
+            // 'replacement_status'    => 'in:1,2',
         ]);
+
+        $validated['updated_by'] = Auth::id();
 
         $cctv->update($validated);
 
@@ -90,52 +91,35 @@ class CctvController extends Controller
 
         return response()->json(['message' => 'CCTV deleted successfully']);
     }
+
     public function searchByName(Request $request)
     {
         $name = $request->query('name');
         $cctv = Cctv::where('name', $name)->firstOrFail();
         return response()->json(['id' => $cctv->id]);
     }
-    // public function showByBranch($branch_id)
-    // {
-    //     $cctvs = Cctv::with(['branch', 'position', 'ipCamAccount'])
-    //         ->where('branch_id', $branch_id)
-    //         ->get();
-
-    //     return response()->json([
-    //         'data' => $cctvs
-    //     ]);
-    // }
 
     public function getByBranch($branch_id)
-    {
-        $cctvs = Cctv::with(['branch', 'position', 'ipCamAccount'])
-            ->where('branch_id', $branch_id)
-            ->get();
+{
+    $cctvs = Cctv::with(['branch', 'position', 'ipCamAccount'])
+        ->where('branch_id', $branch_id)
+        ->get();
 
-        foreach ($cctvs as $cctv) {
-            // Ambil work order aktif
-            $wo = WorkOrder::where('cctv_id', $cctv->id)
-                ->whereIn('status', [1, 2])
-                ->orderByDesc('created_at')
-                ->first();
+    foreach ($cctvs as $cctv) {
+        $wo = WorkOrder::where('cctv_id', $cctv->id)
+            ->whereIn('status', [1, 2])
+            ->latest()
+            ->first();
 
-            // Override status jika ada work order aktif
-            if ($wo) {
-                if ($wo->problem_type == 1) {
-                    $cctv->connection_status = 0; // Disconnected
-                }
-                if ($wo->problem_type == 2) {
-                    $cctv->playback_status = 0; // Playback error
-                }
-                if ($wo->problem_type == 3) {
-                    $cctv->replacement_status = 0; // Need replacement
-                }
-            }
+        if ($wo) {
+            if ($wo->problem_type == 1) $cctv->connection_status = 0;
+            if ($wo->problem_type == 2) $cctv->playback_status = 0;
+            if ($wo->problem_type == 3) $cctv->replacement_status = 0;
         }
-
-        return response()->json($cctvs);
     }
+
+    return response()->json($cctvs);
+}
 
     public function getByBranchName($branchName)
     {
@@ -147,21 +131,13 @@ class CctvController extends Controller
                 ->get()
         );
     }
-    // public function uniqueBranches()
-    // {
-    //     $branchIds = Cctv::select('branch_id')->distinct()->pluck('branch_id');
-
-    //     $branches = Branch::whereIn('id', $branchIds)->get();
-
-    //     return response()->json(['data' => $branches]);
-    // }
 
     public function summary()
     {
         return response()->json([
-            'disconnected' => Cctv::where('connection_status', 0)->count(),
-            'playback_error' => Cctv::where('playback_status', 0)->count(),
-            'pergantian' => Cctv::where('replacement_status', 1)->count(),
+            'disconnected'     => Cctv::where('connection_status', 0)->count(),
+            'playback_error'   => Cctv::where('playback_status', 0)->count(),
+            'pergantian'       => Cctv::where('replacement_status', 0)->count(),
         ]);
     }
 }

@@ -13,7 +13,7 @@ class WorkOrderController extends Controller
 {
     public function index(Request $request)
     {
-        $query = WorkOrder::with(['branch', 'cctv', 'takenBy', 'cctv.position', 'branch.cctv_type', 'user', 'cctv.ipCamAccount']);
+        $query = WorkOrder::with(['branch', 'cctv', 'takenBy', 'cctv.position', 'branch.cctv_type', 'user', 'cctv.ipCamAccount', 'notes']);
 
         if ($request->has('status') && in_array($request->status, [1, 2, 3, 4])) {
             $query->where('status', $request->status);
@@ -24,6 +24,7 @@ class WorkOrderController extends Controller
 
     public function store(Request $request)
     {
+        $user = Auth::user();
         $cctv   = Cctv::where('name', $request->cctv_name)->first();
         $branch = Branch::where('name', $request->branch_name)->first();
 
@@ -31,13 +32,16 @@ class WorkOrderController extends Controller
             return response()->json(['message' => 'CCTV or Branch not found.'], 404);
         }
         $validated = $request->validate([
-            'problem_type'      => 'required|integer|in:1,2',
-            'status'            => 'required|integer|in:1,2,3,4',
-            'notes'             => 'required|string|max:100',
-            'taken_by'          => 'nullable|exists:users,id',
-            'result_type'       => 'nullable|integer|in:1,2',
-            'work_order_notes'  => 'nullable|string|max:255',
+            'problem_type'          => 'required|integer|in:1,2',
+            'status'                => 'required|integer|in:1,2,3,4',
+            'notes'                 => 'required|string|max:100',
+            'taken_by'              => $user->id,
+            // 'result_type'       => 'required|integer|in:1,2',
+            // 'work_order_notes'  => 'required|string|max:255',
+            'created_at'            => now(),
         ]);
+
+
 
          $existing = WorkOrder::whereHas('cctv', function ($q) use ($request) {
             $q->where('name', $request->cctv_name);
@@ -62,8 +66,8 @@ class WorkOrderController extends Controller
         'status'        => $validated['status'],
         'notes'         => $validated['notes'],
         'taken_by'      => $validated['taken_by'],
-        'result_type'   => $validated['result_type'],
-        'work_order_notes'  => $validated['work_order_notes'] ?? null,
+        // 'result_type'   => $validated['result_type'],
+        // 'work_order_notes'  => $validated['work_order_notes'] ?? null,
     ]);
 
     $this->updateCctvStatusFromWO($cctv->id);
@@ -75,18 +79,18 @@ class WorkOrderController extends Controller
     {
         $workOrder = WorkOrder::with(['branch', 'cctv', 'takenBy', 'cctv.position','provider', 'ipCamAccount'])->findOrFail($id);
         return response()->json([
-            'id'            => $workOrder->id,
-            'user'          => $workOrder->user->username,
-            'cctv_name'     => $workOrder->cctv->name,
-            'branch_name'   => $workOrder->branch->name,
-            'problem_type'  => $workOrder->problem_type,
-            'status'        => $workOrder->status,
-            'notes'         => $workOrder->notes,
-            'taken_by_name' => $workOrder->takenBy->name,
-            'result_type'   => $workOrder->result_type,
+            'id'                => $workOrder->id,
+            'user'              => $workOrder->user->username,
+            'cctv_name'         => $workOrder->cctv->name,
+            'branch_name'       => $workOrder->branch->name,
+            'problem_type'      => $workOrder->problem_type,
+            'status'            => $workOrder->status,
+            'notes'             => $workOrder->notes,
+            'taken_by_name'     => $workOrder->takenBy->name,
+            'result_type'       => $workOrder->result_type,
             'work_order_notes'  => $workOrder->work_order_notes,
-            'created_at'    => $workOrder->created_at,
-            'updated_at'    => $workOrder->updated_at,
+            'created_at'        => $workOrder->created_at,
+            'updated_at'        => $workOrder->updated_at,
         ]);
         if ($request->has('status')) {
             $query->where('status', $request->status);
@@ -172,47 +176,36 @@ class WorkOrderController extends Controller
 
 
     public function completeJob($id, Request $request)
-    {
-        $status = $request->input('status');
+{
+    $status = $request->input('status');
 
-        $rules = [
-            'status' => 'required|in:3,4', // 3 = Done, 4 = Waiting Replacement
-        ];
+    $rules = [
+        'status' => 'required|in:3,4',
+    ];
 
-        // Hanya bisa isi notes jika status id == 3
-        if ($status == 3) {
-            $rules['work_order_notes'] = 'nullable|string|max:255';
-        }
-
-        $validated = $request->validate($rules);
-
-        $workOrder = WorkOrder::findOrFail($id);
-        $user = Auth::user();
-
-        if ($workOrder->taken_by !== $user->id) {
-            return response()->json(['message' => 'Kamu bukan yang mengerjakan job ini.'], 403);
-        }
-
-        $workOrder->update([
-            'status' => $status,
-            'work_order_notes' => $request->input('work_order_notes'), // null untuk waiting replacement
-        ]);
-
-        if ($status == 3) {
-            $cctv = $workOrder->cctv;
-            if ($workOrder->problem_type == 1) {
-                $cctv->connection_status = 0;
-            } elseif ($workOrder->problem_type == 2) {
-                $cctv->playback_status = 1;
-            } elseif ($workOrder->problem_type == 3) {
-                $cctv->replacement_status = 1;
-            }
-            $cctv->save();
-        }
-
-        $this->updateCctvStatusFromWO($workOrder->cctv_id);
-
-        return response()->json(['message' => 'Job berhasil diperbarui.', 'data' => $workOrder]);
+    if ($status == 3) {
+        $rules['work_order_notes'] = 'nullable|string|max:255';
     }
 
+    $validated = $request->validate($rules);
+
+    $workOrder = WorkOrder::with('cctv')->findOrFail($id);
+    $user = Auth::user();
+
+    if ($workOrder->taken_by !== $user->id) {
+        return response()->json(['message' => 'Kamu bukan yang mengerjakan job ini.'], 403);
+    }
+
+    $workOrder->update([
+        'status' => $status,
+        'work_order_notes' => $request->input('work_order_notes'),
+    ]);
+
+    $this->updateCctvStatusFromWO($workOrder->cctv_id);
+
+    return response()->json([
+        'message' => 'Job berhasil diperbarui.',
+        'data' => $workOrder
+    ]);
+    }
 }
