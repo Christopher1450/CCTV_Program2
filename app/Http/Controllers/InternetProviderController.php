@@ -70,7 +70,6 @@ class InternetProviderController extends Controller
 
        $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
         ]);
 
         $validated['created_by'] = $request->input('updated_by');

@@ -10,6 +10,7 @@ class WorkOrder extends Model
         'branch_id',
         'cctv_id',
         'title',
+        'result_type',
         'description',
         'problem_type',
         'notes',
@@ -44,5 +45,5 @@ class WorkOrder extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
-    
+
 }

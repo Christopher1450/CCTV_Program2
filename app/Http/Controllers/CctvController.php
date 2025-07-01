@@ -59,7 +59,7 @@ class CctvController extends Controller
 
     public function show($id)
     {
-        $cctv = Cctv::with(['branch', 'position', 'ipCamAccount'])->findOrFail($id);
+        $cctv = Cctv::with(['branch', 'position', 'ipCamAccount', 'branches'])->findOrFail($id);
         return response()->json($cctv);
     }
 

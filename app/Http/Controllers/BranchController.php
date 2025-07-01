@@ -11,7 +11,7 @@ class BranchController extends Controller
     public function index()
     {
         return response()->json(
-            Branch::with(['provider', 'ipCamAccount'])->get()
+            Branch::with(['provider', 'ipCamAccount','cctvs'])->get()
         );
     }
 
@@ -79,16 +79,16 @@ class BranchController extends Controller
         return response()->json(['id' => $branch->id]);
     }
 
-    public function syncFromHRIS($id)
-    {
-        $token = config('services.hris.token'); // dari config/services.php
+    // public function syncFromHRIS($id)
+    // {
+    //     $token = config('services.hris.token'); // dari config/services.php
 
-        $response = Http::withToken($token)->get("https://external-hris.com/api/branches/{$id}");
+    //     $response = Http::withToken($token)->get("https://external-hris.com/api/branches/{$id}");
 
-        if ($response->failed() || !$response->json()) {
-            return response()->json(['message' => 'Gagal sinkronisasi data dari HRIS'], 500);
-        }
+    //     if ($response->failed() || !$response->json()) {
+    //         return response()->json(['message' => 'Gagal sinkronisasi data dari HRIS'], 500);
+    //     }
 
-        return response()->json($response->json());
-    }
+    //     return response()->json($response->json());
+    // }
 }
