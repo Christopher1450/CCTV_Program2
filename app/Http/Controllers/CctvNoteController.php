@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\CctvNote;
 
+
 class CctvNoteController extends Controller
 {
     public function index()

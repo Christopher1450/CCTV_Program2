@@ -10,12 +10,14 @@ class CctvPositionController extends Controller
 {
     public function index(Request $request)
     {
-        $limit = $request->input('limit', 10); // default 10
+        $limit = $request->input('limit', 10);
         $positions = CctvPosition::paginate($limit);
 
         return response()->json([
-            'data' => $positions->items(),  // array data
-            'total' => $positions->total(), // total semua data
+            'data'          => $positions->items(),
+            'total'         => $positions->total(),
+            'current_page'  => $positions->currentPage(),
+            'last_page'     => $positions->lastPage(),
         ]);
     }
 

@@ -13,6 +13,8 @@ class WorkOrderController extends Controller
 {
     public function index(Request $request)
     {
+        $limit = $request->input('limit', 10);
+
         $query = WorkOrder::with([
             'branch',
             'cctv',
@@ -28,28 +30,30 @@ class WorkOrderController extends Controller
             $query->where('status', $request->status);
         }
 
-        $orders = $query->get();
+        $orders = $query->orderBy('id', 'asc')->paginate($limit);
 
-        // Tambahkan flag has_been_replaced per item
-        $orders = $orders->map(function ($order) {
+        $orders->getCollection()->transform(function ($order) {
             $order->has_been_replaced = WorkOrder::where('cctv_id', $order->cctv_id)
                 ->where('status', 4)
                 ->exists();
             return $order;
         });
 
+        $summary = [
+            'pending' => WorkOrder::where('status', 1)->count(),
+            'in_progress' => WorkOrder::where('status', 2)->count(),
+            'done' => WorkOrder::where('status', 3)->count(),
+            'waiting_replacement' => WorkOrder::where('status', 4)->count(),
+        ];
 
-        $orders = $orders->map(function ($order) {
-        $order->has_been_replaced = WorkOrder::where('cctv_id', $order->cctv_id)
-            ->where('status', 4)
-            ->exists();
-
-        $order->result_type = $order->result_type;
-
-    return $order;
-});
-
-        return response()->json($orders);
+        return response()->json([
+            'data'          => $orders->items(),
+            'total'         => $orders->total(),
+            'current_page'  => $orders->currentPage(),
+            'per_page'      => $orders->perPage(),
+            'last_page'     => $orders->lastPage(),
+            'status_summary'=> $summary,
+        ]);
     }
 
     public function store(Request $request)
@@ -249,4 +253,16 @@ class WorkOrderController extends Controller
             'data' => $workOrder
         ]);
     }
+    // Endpoint untuk rekap total per status
+    public function summary()
+    {
+        return response()->json([
+            'pending'     => WorkOrder::where('status', 1)->count(),
+            'in_progress' => WorkOrder::where('status', 2)->count(),
+            'done'        => WorkOrder::where('status', 3)->count(),
+            'replacement' => WorkOrder::where('status', 4)->count(),
+            'total'       => WorkOrder::count(),
+        ]);
+    }
+
 }

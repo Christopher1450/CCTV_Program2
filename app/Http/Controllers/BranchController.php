@@ -8,12 +8,22 @@ use Illuminate\Support\Facades\Http;
 
 class BranchController extends Controller
 {
-    public function index()
+    // public function index()
+    // {
+    //     return response()->json(
+    //         Branch::with(['provider', 'ipCamAccount','cctvs'])->get()
+    //     );
+    // }
+    public function index(Request $request)
     {
-        return response()->json(
-            Branch::with(['provider', 'ipCamAccount','cctvs'])->get()
-        );
+        $limit = $request->input('limit', 10); // default 10 per halaman
+        $branches = Branch::with(['provider', 'ipCamAccount', 'cctvs'])
+            ->orderBy('id', 'asc')
+            ->paginate($limit); // otomatis handle page juga
+
+        return response()->json($branches);
     }
+
 
     public function store(Request $request)
     {

@@ -7,11 +7,19 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::with('role')->paginate(10);
-        return response()->json($users);
+        $limit = $request->input('limit', 10);
+        $users = User::with('role')->paginate($limit);
+
+        return response()->json([
+            'data'          => $users->items(),
+            'total'         => $users->total(),
+            'current_page'  => $users->currentPage(),
+            'last_page'     => $users->lastPage(),
+        ]);
     }
+
 
     public function show($id)
     {
