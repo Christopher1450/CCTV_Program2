@@ -10,11 +10,20 @@ class IpCamAccountController extends Controller
     public function index(Request $request)
     {
         $limit = $request->input('limit', 10);
-        $accounts = IpCamAccount::paginate($limit);
+        $query = IpCamAccount::query();
+
+        if ($request->has('q') && !empty($request->q)) {
+            $keyword = strtolower($request->q);
+            $query->whereRaw('LOWER(email) LIKE ?', ["%{$keyword}%"]);
+        }
+
+        $accounts = $query->orderBy('id', 'asc')->paginate($limit);
 
         return response()->json([
             'data' => $accounts->items(),
             'total' => $accounts->total(),
+            'current_page' => $accounts->currentPage(),
+            'last_page' => $accounts->lastPage(),
         ]);
     }
 

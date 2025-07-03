@@ -9,17 +9,26 @@ use App\Models\CctvPosition;
 class CctvPositionController extends Controller
 {
     public function index(Request $request)
-    {
-        $limit = $request->input('limit', 10);
-        $positions = CctvPosition::paginate($limit);
+{
+    $limit = $request->input('limit', 10);
 
-        return response()->json([
-            'data'          => $positions->items(),
-            'total'         => $positions->total(),
-            'current_page'  => $positions->currentPage(),
-            'last_page'     => $positions->lastPage(),
-        ]);
+    $query = CctvPosition::query();
+
+    if ($request->has('q') && !empty($request->q)) {
+        $keyword = strtolower($request->q);
+        $query->whereRaw('LOWER(name) LIKE ?', ["%{$keyword}%"]);
     }
+
+    $positions = $query->orderBy('id', 'asc')->paginate($limit);
+
+    return response()->json([
+        'data'          => $positions->items(),
+        'total'         => $positions->total(),
+        'current_page'  => $positions->currentPage(),
+        'last_page'     => $positions->lastPage(),
+    ]);
+}
+
 
 
     public function store(Request $request)

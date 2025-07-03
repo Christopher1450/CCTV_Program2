@@ -15,14 +15,37 @@ class BranchController extends Controller
     //     );
     // }
     public function index(Request $request)
-    {
-        $limit = $request->input('limit', 10); // default 10 per halaman
-        $branches = Branch::with(['provider', 'ipCamAccount', 'cctvs'])
-            ->orderBy('id', 'asc')
-            ->paginate($limit); // otomatis handle page juga
+{
+    $limit = $request->input('limit', 10); // default 10 per halaman
 
-        return response()->json($branches);
-    }
+    $query = Branch::with(['provider', 'ipCamAccount', 'cctvs'])
+        ->orderBy('id', 'asc');
+
+    // Tambahkan filter jika ada query search
+   if ($request->has('q') && !empty($request->q)) {
+    $keyword = strtolower($request->q); // biar gak case sensitive
+
+    $query->where(function ($q) use ($keyword) {
+        $q->whereRaw('LOWER(name) LIKE ?', ["%{$keyword}%"])
+          ->orWhereHas('provider', function ($sub) use ($keyword) {
+              // FIX: kolom relasi yang benar adalah 'name', bukan 'provider_name'
+              $sub->whereRaw('LOWER(name) LIKE ?', ["%{$keyword}%"]);
+          })
+          ->orWhereRaw('LOWER(address) LIKE ?', ["%{$keyword}%"])
+          ->orWhereRaw('LOWER(phone_number) LIKE ?', ["%{$keyword}%"]);
+    });
+}
+
+
+    $branches = $query->paginate($limit);
+
+    return response()->json([
+        'data' => $branches->items(),
+        'total' => $branches->total(),
+        'current_page' => $branches->currentPage(),
+        'last_page' => $branches->lastPage(),
+    ]);
+}
 
 
     public function store(Request $request)

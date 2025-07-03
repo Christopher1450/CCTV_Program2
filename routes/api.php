@@ -20,6 +20,7 @@ use App\Models\WorkOrder;
 use Illuminate\Http\Request;
 
 
+
 Route::middleware('throttle:60,1')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/refresh', [AuthController::class, 'refresh'])->middleware('throttle:5,1');
@@ -29,6 +30,13 @@ Route::middleware('throttle:60,1')->group(function () {
 // user -> name
 Route::middleware('auth:api')->get('/me', function () {
     return response()->json(['data' => \Illuminate\Support\Facades\Auth::user()]);
+});
+
+Route::middleware('auth:api')->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index']);
+    Route::get('/work-orders/latest', [DashboardController::class, 'latestWorkOrders']);
+    Route::middleware('auth:api')->get('/work-orders/latest', [WorkOrderController::class, 'latest']);
+
 });
 
 Route::middleware('auth:api')->group(function () {
@@ -91,8 +99,15 @@ Route::get('/work-orders/{id}/notes', function ($id) {
             ->get(),
     ]);
 });
+// buat dashbaord Mini view
+Route::get('/work-orders/latest', [WorkOrderController::class, 'latest']);
+
 
 
 Route::apiResource('roles', RoleController::class)->middleware('auth:api');
 
 Route::apiResource('cctv-positions', CctvPositionController::class)->middleware('auth:api');
+
+
+
+

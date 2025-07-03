@@ -26,6 +26,23 @@ class WorkOrderController extends Controller
             'notes'
         ]);
 
+        //  Search filter
+        if ($request->has('q')) {
+            $keyword = $request->q;
+            $query->where(function ($q) use ($keyword) {
+                $q->whereHas('cctv', function ($c) use ($keyword) {
+                    $c->where('name', 'like', "%{$keyword}%");
+                })
+                ->orWhereHas('branch', function ($b) use ($keyword) {
+                    $b->where('name', 'like', "%{$keyword}%");
+                })
+                ->orWhereHas('user', function ($u) use ($keyword) {
+                    $u->where('username', 'like', "%{$keyword}%");
+                });
+            });
+        }
+
+        // Status filter
         if ($request->has('status') && in_array($request->status, [1, 2, 3, 4])) {
             $query->where('status', $request->status);
         }
@@ -47,14 +64,16 @@ class WorkOrderController extends Controller
         ];
 
         return response()->json([
-            'data'          => $orders->items(),
-            'total'         => $orders->total(),
-            'current_page'  => $orders->currentPage(),
-            'per_page'      => $orders->perPage(),
-            'last_page'     => $orders->lastPage(),
-            'status_summary'=> $summary,
+            'data'           => $orders->items(),
+            'total'          => $orders->total(),
+            'current_page'   => $orders->currentPage(),
+            'per_page'       => $orders->perPage(),
+            'last_page'      => $orders->lastPage(),
+            'status_summary' => $summary,
         ]);
     }
+
+
 
     public function store(Request $request)
     {
@@ -265,4 +284,33 @@ class WorkOrderController extends Controller
         ]);
     }
 
+    public function dashboard()
+    {
+        return response()->json([
+            'cctvCounts' => [
+                'disconnected'      => WorkOrder::where('status', 1)->count(),
+                'playbackError'     => WorkOrder::where('status', 2)->count(),
+                'needsReplacement'  => WorkOrder::where('status', 4)->count(),
+            ],
+            'lineChartData' => [
+                'labels' => ['Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar'],
+                'data'   => [12, 8, 15, 10, 7, 5, 9]
+            ],
+            'latestOrders' => WorkOrder::with(['branch', 'cctv'])
+                ->orderBy('created_at', 'desc')
+                ->take(5)
+                ->get()
+        ]);
+    }
+
+    // untuk Dashboard Miniview dengan pagination per setiap 5
+    public function latest(Request $request)
+    {
+        $limit = $request->input('limit', 5);
+        $orders = WorkOrder::with(['cctv', 'branch'])
+            ->orderBy('created_at', 'desc')
+            ->paginate($limit);
+
+        return response()->json($orders);
+    }
 }
