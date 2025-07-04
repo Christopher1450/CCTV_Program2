@@ -114,6 +114,7 @@ class WorkOrderController extends Controller
             'notes'        => $validated['notes'],
             'taken_by'     => $user->id,
             'created_at'   => now(),
+            'created_by'   => $user->id,
         ]);
 
         $this->updateCctvStatusFromWO($cctv->id);
@@ -149,6 +150,7 @@ class WorkOrderController extends Controller
 
     public function update(Request $request, $id)
     {
+        $user = Auth::user();
         $workOrder = WorkOrder::findOrFail($id);
 
         $validated = $request->validate([
@@ -158,6 +160,9 @@ class WorkOrderController extends Controller
             'description'   => 'required|string',
             'status'        => 'nullable|integer|in:1,2,3',
             'taken_by'      => 'nullable|exists:users,id',
+            'updated_at'    => now(),
+            'updated_by'    => $user->id,
+
         ]);
 
         $workOrder->update($validated);

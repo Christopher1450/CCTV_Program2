@@ -11,46 +11,43 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        // Summary untuk pie chart
+        // Status summary untuk pie chart
         $statusCounts = [
-        'disconnected'      => Cctv::where('connection_status', 0)->count(),
-        // 'playback_error'    => CCtv::where('playback_status', 2)->count(),
-        // 'need_replacement'  => Cctv::where('replacement_status', 4)->count(),
-        'active'            => Cctv::where('connection_status', 1)->count(),
-        //                             ->where('playback_status', 1)
-        //                             ->where('replacement_status', 0)
+            'disconnected'       => Cctv::where('connection_status', 0)->count(),
+            'playback_error'     => Cctv::where('playback_status', 0)->count(),
+            'needs_replacement'  => Cctv::where('replacement_status', 0)->count(),
+            'active'             => Cctv::where('connection_status', 1)
+                                    ->where('playback_status', 1)
+                                    ->where('replacement_status', 1)
+                                    ->count(),
         ];
 
-    $totalBroken = Cctv::where(function ($q) {
-        $q->where('connection_status', 0)
-        ->orWhere('playback_status', 0)
-        ->orWhere('replacement_status', 1);
-    })->count();
+        // Total CCTV yang ada masalah
+        $totalBroken = Cctv::where(function ($q) {
+            $q->where('connection_status', 0)
+            ->orWhere('playback_status', 0)
+            ->orWhere('replacement_status', 0);
+        })->count();
 
-    // Total broken (hitung semua yg error atau butuh penggantian)
-    $totalBroken = Cctv::where('connection_status', 0)
-                        ->orWhere('playback_status', 0)
-                        ->orWhere('replacement_status', 1)
-                        ->count();
-
-        // Mini work orders (5 terbaru)
+        // Work orders terbaru
         $latestWorkOrders = WorkOrder::with(['cctv', 'branch', 'takenBy'])
-            ->latest()
-            ->limit(5)
+            ->latest('created_at')
+            ->take(5)
             ->get();
 
         return response()->json([
-                'user'      => [
+            'user' => [
                 'id'        => $user->id,
                 'username'  => $user->username,
                 'role'      => $user->role->role_name,
                 'image'     => $user->image,
             ],
-            'status_counts' => $statusCounts,
-            'total_broken'  => $totalBroken,
-            'latest_work_orders' => $latestWorkOrders,
+            'status_counts'       => $statusCounts,
+            'total_broken'        => $totalBroken,
+            'latest_work_orders'  => $latestWorkOrders,
         ]);
     }
+
 
     public function latestWorkOrders(Request $request)
     {

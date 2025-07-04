@@ -15,7 +15,9 @@ class WorkOrder extends Model
         'problem_type',
         'notes',
         'status',
-        'takenBy'
+        'takenBy',
+        'created_by',
+        'updated_by'
     ];
 
     public function branch()
@@ -45,5 +47,12 @@ class WorkOrder extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
-
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
 }

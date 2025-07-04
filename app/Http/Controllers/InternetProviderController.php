@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\InternetProvider;
 use Faker\Provider\ar_EG\Internet;
 use App\Models\IspMaster;
+use Illuminate\Support\Facades\Auth;
 
 class InternetProviderController extends Controller
 {
@@ -16,7 +17,14 @@ class InternetProviderController extends Controller
     {
         $limit = $request->input('limit', 10);
 
-        $providers = InternetProvider::with(['createdBy:id,name', 'updatedBy:id,name'])->paginate($limit);
+        $query = InternetProvider::with(['createdBy:id,name', 'updatedBy:id,name']);
+
+        // Filter berdasarkan search query
+        if ($request->has('q') && !empty($request->q)) {
+            $query->where('name', 'like', '%' . $request->q . '%');
+        }
+
+        $providers = $query->paginate($limit);
 
         return response()->json([
             'data' => $providers->items(),
@@ -25,6 +33,7 @@ class InternetProviderController extends Controller
             'last_page' => $providers->lastPage(),
         ]);
     }
+
     public function list()
     {
         return response()->json(
@@ -39,12 +48,16 @@ class InternetProviderController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-        'name' => 'required|string|max:255',
-        'description' => 'nullable|string',
-]);
+        $user = Auth::user();
 
-        $validated['created_by'] = $request->input('created_by');
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+        ]);
+
+        // Auto assign created_by dan updated_by dari user login
+        $validated['created_by'] = $user->id;
+        $validated['updated_by'] = $user->id;
 
         $model = InternetProvider::create($validated);
 
@@ -60,32 +73,25 @@ class InternetProviderController extends Controller
         return response()->json($provider);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, string $id)
     {
+        $user = Auth::user();
         $provider = InternetProvider::findOrFail($id);
-        // $provider = InternetProvider
 
-       $validated = $request->validate([
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
         ]);
 
-        $validated['created_by'] = $request->input('updated_by');
-
+        $validated['updated_by'] = $user->id;
 
         $provider->update($validated);
 
-
-        $provider->update($request->only('name', 'created_by', 'updated_by'));
-
-        return response()->json($provider);
+        return response()->json([
+            'message' => 'Provider updated successfully',
+            'data' => $provider
+        ]);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(string $id)
     {
         $provider = InternetProvider::findOrFail($id);

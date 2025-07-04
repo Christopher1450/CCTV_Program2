@@ -14,4 +14,8 @@ class CctvNote extends Model
     {
         return $this->belongsTo(Cctv::class);
     }
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
 }

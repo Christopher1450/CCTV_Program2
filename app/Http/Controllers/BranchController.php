@@ -4,52 +4,49 @@ namespace App\Http\Controllers;
 
 use App\Models\Branch;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 
 class BranchController extends Controller
 {
-    // public function index()
-    // {
-    //     return response()->json(
-    //         Branch::with(['provider', 'ipCamAccount','cctvs'])->get()
-    //     );
-    // }
+
     public function index(Request $request)
-{
-    $limit = $request->input('limit', 10); // default 10 per halaman
-
-    $query = Branch::with(['provider', 'ipCamAccount', 'cctvs'])
-        ->orderBy('id', 'asc');
-
-    // Tambahkan filter jika ada query search
-   if ($request->has('q') && !empty($request->q)) {
-    $keyword = strtolower($request->q); // biar gak case sensitive
-
-    $query->where(function ($q) use ($keyword) {
-        $q->whereRaw('LOWER(name) LIKE ?', ["%{$keyword}%"])
-          ->orWhereHas('provider', function ($sub) use ($keyword) {
-              // FIX: kolom relasi yang benar adalah 'name', bukan 'provider_name'
-              $sub->whereRaw('LOWER(name) LIKE ?', ["%{$keyword}%"]);
-          })
-          ->orWhereRaw('LOWER(address) LIKE ?', ["%{$keyword}%"])
-          ->orWhereRaw('LOWER(phone_number) LIKE ?', ["%{$keyword}%"]);
-    });
-}
-
-
-    $branches = $query->paginate($limit);
-
-    return response()->json([
-        'data' => $branches->items(),
-        'total' => $branches->total(),
-        'current_page' => $branches->currentPage(),
-        'last_page' => $branches->lastPage(),
-    ]);
-}
-
-
-    public function store(Request $request)
     {
+        $limit = $request->input('limit', 10); // default 10 per halaman
+
+        $query = Branch::with(['provider', 'ipCamAccount', 'cctvs'])
+            ->orderBy('id', 'asc');
+
+        // Tambahkan filter jika ada query search
+    if ($request->has('q') && !empty($request->q)) {
+        $keyword = strtolower($request->q); // biar gak case sensitive
+
+        $query->where(function ($q) use ($keyword) {
+            $q->whereRaw('LOWER(name) LIKE ?', ["%{$keyword}%"])
+            ->orWhereHas('provider', function ($sub) use ($keyword) {
+                // FIX: kolom relasi yang benar adalah 'name', bukan 'provider_name'
+                $sub->whereRaw('LOWER(name) LIKE ?', ["%{$keyword}%"]);
+            })
+            ->orWhereRaw('LOWER(address) LIKE ?', ["%{$keyword}%"])
+            ->orWhereRaw('LOWER(phone_number) LIKE ?', ["%{$keyword}%"]);
+        });
+    }
+
+        $branches = $query->paginate($limit);
+
+        return response()->json([
+            'data' => $branches->items(),
+            'total' => $branches->total(),
+            'current_page' => $branches->currentPage(),
+            'last_page' => $branches->lastPage(),
+        ]);
+    }
+
+
+   public function store(Request $request)
+    {
+        $user = Auth::user();
+
         $validated = $request->validate([
             'internet_provider_id'  => 'required|exists:internet_providers,id',
             'internet_customer_id'  => 'required|string|max:60',
@@ -57,10 +54,17 @@ class BranchController extends Controller
             'ip_cam_account_id'     => 'nullable|exists:ip_cam_accounts,id',
         ]);
 
+        // Tambahkan created_by otomatis
+        $validated['created_by'] = $user->id;
+
         $branch = Branch::create($validated);
 
-        return response()->json($branch, 201);
+        return response()->json([
+            'message' => 'Branch created successfully',
+            'data' => $branch
+        ], 201);
     }
+
 
     public function show($id)
     {
@@ -70,6 +74,8 @@ class BranchController extends Controller
 
     public function update(Request $request, $id)
     {
+        $user = Auth::user();
+
         $branch = Branch::findOrFail($id);
 
         $validated = $request->validate([
@@ -77,6 +83,7 @@ class BranchController extends Controller
             'internet_customer_id'  => 'nullable|string|max:60',
             'cctv_type'             => 'nullable|in:1,2',
             'ip_cam_account_id'     => 'nullable|exists:ip_cam_accounts,id',
+            'updated_by'            => $user->id
         ]);
 
         $branch->update($validated);

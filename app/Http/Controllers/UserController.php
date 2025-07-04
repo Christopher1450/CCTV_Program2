@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 
@@ -14,7 +15,19 @@ class UserController extends Controller
         $limit = intval($request->input('limit', 10));
         $limit = $limit > 50 ? 50 : $limit; // Batasi max 50 per page
 
-        $users = User::with('role')->paginate($limit);
+        $query = User::with('role');
+
+        // Cek jika ada query search (misalnya ?q=nama)
+        if ($request->has('q') && !empty($request->q)) {
+            $search = strtolower($request->q);
+            $query->where(function ($q) use ($search) {
+                $q->whereRaw('LOWER(name) LIKE ?', ["%{$search}%"])
+                ->orWhereRaw('LOWER(username) LIKE ?', ["%{$search}%"]);
+                // ->orWhereRaw('LOWER(role) LIKE ?', bindings: ["%{$search}%"]);
+            });
+        }
+
+        $users = $query->paginate($limit);
 
         return response()->json([
             'data'          => $users->items(),
@@ -78,7 +91,7 @@ class UserController extends Controller
         }
 
         // Prevent editing superadmin if not allowed
-        if ($user->role_id == 1 && auth()->user()->role_id != 1) {
+        if ($user->role_id == 1 && Auth::user()->role_id != 1) {
             return response()->json(['message' => 'Unauthorized to update this user'], 403);
         }
 
@@ -94,7 +107,7 @@ class UserController extends Controller
         $user = User::findOrFail($id);
 
         // Prevent deleting yourself or superadmin
-        if (auth()->id() == $user->id || $user->role_id == 1) {
+        if (auth::user() == $user->id || $user->role_id == 1) {
             return response()->json(['message' => 'You cannot delete this user'], 403);
         }
 

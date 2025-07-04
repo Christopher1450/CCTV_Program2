@@ -10,7 +10,9 @@ class Branch extends Model
     'internet_provider_id',
     'internet_customer_id',
     'cctv_type',
-    'ip_cam_account_id'
+    'ip_cam_account_id',
+    'create_by',
+    'updated_by'
     ];
 
     public function provider()
@@ -22,8 +24,6 @@ class Branch extends Model
     {
         return $this->belongsTo(IpCamAccount::class, 'ip_cam_account_id');
     }
-
-
     public function cctvs()
     {
         return $this->hasMany(Cctv::class);
@@ -36,5 +36,13 @@ class Branch extends Model
     public function cctv_type()
     {
         return $this->belongsTo(Branch::class, 'cctv_type');
+    }
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }

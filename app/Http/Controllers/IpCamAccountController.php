@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\IpCamAccount;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class IpCamAccountController extends Controller
 {
@@ -29,14 +30,21 @@ class IpCamAccountController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        $user = Auth::user();
+
+        // Validate only email (tidak perlu created_by disini)
+        $validated = $request->validate([
             'email' => 'required|email|unique:ip_cam_accounts,email',
         ]);
 
-        $account = IpCamAccount::create($request->only('email'));
+        // Tambahkan created_by manual
+        $validated['created_by'] = $user->id;
+
+        $account = IpCamAccount::create($validated);
 
         return response()->json($account, 201);
     }
+
 
     public function show($id)
     {
@@ -46,16 +54,24 @@ class IpCamAccountController extends Controller
 
     public function update(Request $request, $id)
     {
+        $user = Auth::user(); // user login
         $account = IpCamAccount::findOrFail($id);
 
-        $request->validate([
+        $validated = $request->validate([
             'email' => 'required|email|unique:ip_cam_accounts,email,' . $id,
         ]);
 
-        $account->update($request->only('email'));
+        // Tambahkan updated_by otomatis
+        $validated['updated_by'] = $user->id;
 
-        return response()->json($account);
+        $account->update($validated);
+
+        return response()->json([
+            'message' => 'Account updated successfully',
+            'data' => $account
+        ]);
     }
+
 
     public function destroy($id)
     {

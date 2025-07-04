@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Cctv extends Model
 {
-    protected $fillable = ['branch_id', 'cctv_position_id','name','ipCamAccount'];
+    protected $fillable = ['branch_id', 'cctv_position_id','name','ipCamAccount','created_by', 'updated_by'];
 
     public function branch()
     {
@@ -38,5 +38,14 @@ class Cctv extends Model
     public function workOrders()
     {
         return $this->hasMany(WorkOrder::class);
+    }
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 }

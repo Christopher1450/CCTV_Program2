@@ -15,11 +15,15 @@ class BranchLogController extends Controller
 
     public function store(Request $request)
     {
+        $user = Auth::user();
+
         $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'log' => 'required|string|max:255',
+            'created_by' => $user->id
         ]);
-        $validated['created_by'] = Auth::id();
+
+        $validated['created_by'] = $request->input('created_by');
 
         $log = BranchLog::create($validated);
 

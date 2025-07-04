@@ -40,17 +40,19 @@ class CctvController extends Controller
 
     public function store(Request $request)
     {
+        $user = Auth::user();
+
         $validated = $request->validate([
-            'branch_id'             => 'required|exists:branches,id',
-            'cctv_position_id'      => 'required|exists:cctv_positions,id',
-            'name'                  => 'required|string|unique:cctvs,name,NULL,id,branch_id,' . $request->branch_id,
-            'is_active'             => 'boolean',
-            'connection_status'     => 'in:1,2',
-            'playback_status'       => 'in:1,2',
-            // 'replacement_status'    => 'in:1,2',
+            'branch_id'         => 'required|exists:branches,id',
+            'cctv_position_id'  => 'required|exists:cctv_positions,id',
+            'name'              => 'required|string|unique:cctvs,name,NULL,id,branch_id,' . $request->branch_id,
+            'is_active'         => 'boolean',
+            'connection_status' => 'in:1,2',
+            'playback_status'   => 'in:1,2',
         ]);
 
-        $validated['created_by'] = Auth::user();
+        // Tambahkan created_by otomatis
+        $validated['created_by'] = $user->id;
 
         $cctv = Cctv::create($validated);
 
@@ -65,19 +67,20 @@ class CctvController extends Controller
 
     public function update(Request $request, $id)
     {
+        $user = Auth::user();
         $cctv = Cctv::findOrFail($id);
 
         $validated = $request->validate([
-            'branch_id'             => 'required|exists:branches,id',
-            'cctv_position_id'      => 'required|exists:cctv_positions,id',
-            'name'                  => 'required|string|unique:cctvs,name,' . $id . ',id,branch_id,' . $request->branch_id,
-            'is_active'             => 'boolean',
-            'connection_status'     => 'in:1,2',
-            'playback_status'       => 'in:1,2',
-            // 'replacement_status'    => 'in:1,2',
+            'branch_id'         => 'required|exists:branches,id',
+            'cctv_position_id'  => 'required|exists:cctv_positions,id',
+            'name'              => 'required|string|unique:cctvs,name,' . $id . ',id,branch_id,' . $request->branch_id,
+            'is_active'         => 'boolean',
+            'connection_status' => 'in:1,2',
+            'playback_status'   => 'in:1,2',
         ]);
 
-        $validated['updated_by'] = Auth::id();
+        // Tambahkan updated_by otomatis
+        $validated['updated_by'] = $user->id;
 
         $cctv->update($validated);
 
