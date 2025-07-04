@@ -54,7 +54,6 @@ class BranchController extends Controller
             'ip_cam_account_id'     => 'nullable|exists:ip_cam_accounts,id',
         ]);
 
-        // Tambahkan created_by otomatis
         $validated['created_by'] = $user->id;
 
         $branch = Branch::create($validated);

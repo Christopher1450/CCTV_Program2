@@ -48,7 +48,6 @@ class DashboardController extends Controller
         ]);
     }
 
-
     public function latestWorkOrders(Request $request)
     {
         $limit = $request->input('limit', 5);

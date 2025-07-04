@@ -49,6 +49,8 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
+        $user = Auth::user(); // the user who is creating
+
         $validated = $request->validate([
             'name'      => 'required|string|max:100',
             'username'  => 'required|string|max:100|unique:users,username|regex:/^[a-zA-Z0-9_\-\.]+$/',
@@ -57,49 +59,79 @@ class UserController extends Controller
             'status'    => ['required', Rule::in([0, 1])],
         ]);
 
+        // Assign created_by and updated_by
+        $validated['created_by'] = $user->id;
+
         $validated['password'] = Hash::make($validated['password']);
 
-        $user = User::create($validated);
+        $newUser = User::create($validated);
 
-        // Jangan expose password hash
-        unset($user->password);
+        // Load created_by relationship
+        $newUser->load(['createdBy:id,name', 'updatedBy:id,name']);
 
-        return response()->json($user, 201);
+        unset($newUser->password); // don’t return password hash
+
+        return response()->json([
+            'id'          => $newUser->id,
+            'name'        => $newUser->name,
+            'username'    => $newUser->username,
+            'role_id'     => $newUser->role_id,
+            'status'      => $newUser->status,
+            'created_at'  => $newUser->created_at,
+            'updated_at'  => $newUser->updated_at,
+            'created_by'  => $newUser->createdBy,
+            'updated_by'  => $newUser->updatedBy,
+        ], 201);
     }
+
 
     public function update(Request $request, $id)
     {
-        $user = User::findOrFail($id);
+        $user = Auth::user();
+        $existingUser = User::findOrFail($id);
 
         $validated = $request->validate([
             'name'      => 'sometimes|required|string|max:100',
             'username'  => [
                 'sometimes', 'required', 'string', 'max:100',
-                Rule::unique('users')->ignore($user->id),
+                Rule::unique('users')->ignore($existingUser->id),
                 'regex:/^[a-zA-Z0-9_\-\.]+$/'
             ],
             'password'  => 'nullable|string|min:8|confirmed',
-            'role_id'   => 'nulable|integer|exists:roles,id',
+            'role_id'   => 'nullable|integer|exists:roles,id',
             'status'    => ['required', Rule::in([0, 1])],
         ]);
 
-        // Jika password diisi, hash ulang
+        // Update password if provided
         if (!empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
             unset($validated['password']);
         }
 
-        // Prevent editing superadmin if not allowed
-        if ($user->role_id == 1 && Auth::user()->role_id != 1) {
+        $validated['updated_by'] = $user->id;
+
+        // Protect superadmin
+        if ($existingUser->role_id == 1 && $user->role_id != 1) {
             return response()->json(['message' => 'Unauthorized to update this user'], 403);
         }
 
-        $user->update($validated);
+        $existingUser->update($validated);
 
-        unset($user->password);
+        $existingUser->load(['createdBy:id,name', 'updatedBy:id,name']);
+        unset($existingUser->password);
 
-        return response()->json($user);
+        return response()->json([
+            'id'          => $existingUser->id,
+            'name'        => $existingUser->name,
+            'username'    => $existingUser->username,
+            'role_id'     => $existingUser->role_id,
+            'status'      => $existingUser->status,
+            'created_at'  => $existingUser->created_at,
+            'updated_at'  => $existingUser->updated_at,
+            'created_by'  => $existingUser->createdBy,
+            'updated_by'  => $existingUser->updatedBy,
+        ]);
     }
 
     public function destroy($id)
